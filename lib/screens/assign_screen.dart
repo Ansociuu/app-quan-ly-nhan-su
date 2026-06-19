@@ -13,6 +13,7 @@ class AssignScreen extends StatefulWidget {
 class _AssignScreenState extends State<AssignScreen> {
   String? _selectedEmployeeId;
   String? _selectedPositionId;
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +25,20 @@ class _AssignScreenState extends State<AssignScreen> {
     final positions = appData.positions;
     final assignments = appData.employeePosition;
 
-    // Lọc danh sách nhân viên đã có chức vụ để hiển thị bên dưới
+    // Chia danh sách nhân viên thành 2 nhóm: Đã bổ nhiệm và Chưa bổ nhiệm
     final assignedEmployees = employees.where((emp) => assignments.containsKey(emp.maNV)).toList();
+    final unassignedEmployees = employees.where((emp) => !assignments.containsKey(emp.maNV)).toList();
+
+    final query = _searchQuery.toLowerCase().trim();
+    final filteredAssigned = assignedEmployees.where((emp) =>
+        emp.hoTen.toLowerCase().contains(query) ||
+        emp.maNV.toLowerCase().contains(query)
+    ).toList();
+
+    final filteredUnassigned = unassignedEmployees.where((emp) =>
+        emp.hoTen.toLowerCase().contains(query) ||
+        emp.maNV.toLowerCase().contains(query)
+    ).toList();
 
     // Reset dropdown nếu ID không còn tồn tại trong danh sách nguồn (phòng khi bị xóa)
     if (_selectedEmployeeId != null && !employees.any((e) => e.maNV == _selectedEmployeeId)) {
@@ -187,6 +200,38 @@ class _AssignScreenState extends State<AssignScreen> {
                     ),
                   ),
 
+                  // Thanh tìm kiếm nhân viên
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Tìm kiếm nhân viên...',
+                        hintText: 'Nhập tên hoặc mã nhân viên',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   // 2. Danh sách nhân viên đã có chức vụ
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -194,24 +239,25 @@ class _AssignScreenState extends State<AssignScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'DANH SÁCH BỔ NHIỆM (${assignedEmployees.length})',
+                          'ĐÃ BỔ NHIỆM (${filteredAssigned.length})',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
+                            color: theme.colorScheme.primary,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  assignedEmployees.isEmpty
-                      ? _buildEmptyAssignmentsState(theme)
+                  filteredAssigned.isEmpty
+                      ? _buildEmptyAssignmentsState(theme, _searchQuery.isNotEmpty)
                       : ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: assignedEmployees.length,
+                          itemCount: filteredAssigned.length,
                           itemBuilder: (context, index) {
-                            final emp = assignedEmployees[index];
+                            final emp = filteredAssigned[index];
                             final posId = assignments[emp.maNV]!;
                             final pos = positions.firstWhere(
                               (p) => p.maCV == posId,
@@ -223,10 +269,23 @@ class _AssignScreenState extends State<AssignScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Color(emp.avatarColorValue),
-                                  child: Text(
-                                    emp.hoTen.trim().isNotEmpty ? emp.hoTen.trim()[0].toUpperCase() : '?',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                  backgroundColor: Color(emp.avatarColorValue).withOpacity(0.15),
+                                  child: ClipOval(
+                                    child: Image.asset(
+                                      emp.avatarAssetPath,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Text(
+                                          emp.hoTen.trim().isNotEmpty ? emp.hoTen.trim()[0].toUpperCase() : '?',
+                                          style: TextStyle(
+                                            color: Color(emp.avatarColorValue),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                                 title: Text(
@@ -265,6 +324,88 @@ class _AssignScreenState extends State<AssignScreen> {
                             );
                           },
                         ),
+
+                  const SizedBox(height: 16),
+                  
+                  // 3. Danh sách nhân viên CHƯA có chức vụ
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'CHƯA BỔ NHIỆM (${filteredUnassigned.length})',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: Colors.orange[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  filteredUnassigned.isEmpty
+                      ? _buildEmptyUnassignedState(theme, _searchQuery.isNotEmpty)
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredUnassigned.length,
+                          itemBuilder: (context, index) {
+                            final emp = filteredUnassigned[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Color(emp.avatarColorValue).withOpacity(0.15),
+                                  child: ClipOval(
+                                    child: Image.asset(
+                                      emp.avatarAssetPath,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Text(
+                                          emp.hoTen.trim().isNotEmpty ? emp.hoTen.trim()[0].toUpperCase() : '?',
+                                          style: TextStyle(
+                                            color: Color(emp.avatarColorValue),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  emp.hoTen,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: const Text(
+                                  'Chưa được gán chức vụ',
+                                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                                trailing: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: theme.colorScheme.secondaryContainer,
+                                    foregroundColor: theme.colorScheme.onSecondaryContainer,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  ),
+                                  icon: const Icon(Icons.add_link, size: 16),
+                                  label: const Text('Bổ nhiệm', style: TextStyle(fontSize: 12)),
+                                  onPressed: () {
+                                    _showQuickAssignDialog(context, appData, emp, positions);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
                   const SizedBox(height: 32),
                 ],
               ),
@@ -321,7 +462,7 @@ class _AssignScreenState extends State<AssignScreen> {
     );
   }
 
-  Widget _buildEmptyAssignmentsState(ThemeData theme) {
+  Widget _buildEmptyAssignmentsState(ThemeData theme, bool isSearching) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(vertical: 32),
@@ -330,20 +471,131 @@ class _AssignScreenState extends State<AssignScreen> {
         color: theme.colorScheme.surfaceContainerHigh.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           children: [
-            Icon(Icons.assignment_late_outlined, size: 40, color: Colors.grey),
-            SizedBox(height: 12),
+            const Icon(Icons.assignment_late_outlined, size: 40, color: Colors.grey),
+            const SizedBox(height: 12),
             Text(
-              'Chưa có nhân viên nào được gán chức vụ.',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+              isSearching
+                  ? 'Không tìm thấy nhân viên đã bổ nhiệm phù hợp.'
+                  : 'Chưa có nhân viên nào được gán chức vụ.',
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildEmptyUnassignedState(ThemeData theme, bool isSearching) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            const Icon(Icons.check_circle_outline, size: 40, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              isSearching
+                  ? 'Không tìm thấy nhân viên chưa bổ nhiệm phù hợp.'
+                  : 'Tất cả nhân viên đã được bổ nhiệm chức vụ!',
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Bổ nhiệm nhanh nhân viên chưa gán chức vụ qua dialog
+  void _showQuickAssignDialog(BuildContext context, AppData appData, Employee emp, List<Position> positions) {
+    String? dialogSelectedPosId = positions.isNotEmpty ? positions.first.maCV : null;
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Bổ nhiệm: ${emp.hoTen}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Chọn chức vụ gán:',
+                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: dialogSelectedPosId,
+                        isExpanded: true,
+                        items: positions.map((Position pos) {
+                          return DropdownMenuItem<String>(
+                            value: pos.maCV,
+                            child: Text('${pos.tenCV} (${pos.maCV})'),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            dialogSelectedPosId = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    if (dialogSelectedPosId != null) {
+                      appData.assignPosition(emp.maNV, dialogSelectedPosId!);
+                      Navigator.pop(dialogContext);
+                      
+                      // Cập nhật lại dropdown trang chính
+                      setState(() {});
+                      
+                      final posName = positions.firstWhere((p) => p.maCV == dialogSelectedPosId).tenCV;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Đã bổ nhiệm ${emp.hoTen} làm $posName!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Bổ nhiệm'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
 
   // Xác nhận hủy gán chức vụ
   void _showUnassignConfirmDialog(BuildContext context, AppData appData, Employee emp, String posName) {

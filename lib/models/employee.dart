@@ -5,7 +5,8 @@ class Employee {
   final String gioiTinh;
   final String trinhDo;
   final String queQuan;
-  final int avatarColorValue; // Giá trị màu ARGB để hiển thị avatar độc nhất
+  final int avatarColorValue; // Vẫn giữ lại trường màu cũ để tương thích ngược hoàn toàn
+  final String avatarAssetPath; // Đường dẫn ảnh trong assets (ví dụ: assets/avatars/avatar1.png)
 
   Employee({
     required this.maNV,
@@ -15,9 +16,10 @@ class Employee {
     required this.trinhDo,
     required this.queQuan,
     required this.avatarColorValue,
+    required this.avatarAssetPath,
   });
 
-  // Chuyển đổi đối tượng sang Map để lưu trữ JSON
+  // Chuyển đối tượng sang Map để lưu trữ JSON
   Map<String, dynamic> toJson() {
     return {
       'maNV': maNV,
@@ -27,10 +29,11 @@ class Employee {
       'trinhDo': trinhDo,
       'queQuan': queQuan,
       'avatarColorValue': avatarColorValue,
+      'avatarAssetPath': avatarAssetPath,
     };
   }
 
-  // Khởi tạo đối tượng từ Map (JSON)
+  // Khởi tạo đối tượng từ Map (JSON) với cơ chế tương thích ngược (fallback)
   factory Employee.fromJson(Map<String, dynamic> json) {
     return Employee(
       maNV: json['maNV'] ?? '',
@@ -39,7 +42,8 @@ class Employee {
       gioiTinh: json['gioiTinh'] ?? '',
       trinhDo: json['trinhDo'] ?? '',
       queQuan: json['queQuan'] ?? '',
-      avatarColorValue: json['avatarColorValue'] ?? 0xFF5C6BC0, // Mặc định là màu Indigo nhẹ
+      avatarColorValue: json['avatarColorValue'] ?? 0xFF5C6BC0,
+      avatarAssetPath: json['avatarAssetPath'] ?? 'assets/avatars/avatar1.png', // Mặc định nếu dữ liệu cũ không có
     );
   }
 
@@ -52,6 +56,7 @@ class Employee {
     String? trinhDo,
     String? queQuan,
     int? avatarColorValue,
+    String? avatarAssetPath,
   }) {
     return Employee(
       maNV: maNV ?? this.maNV,
@@ -61,6 +66,7 @@ class Employee {
       trinhDo: trinhDo ?? this.trinhDo,
       queQuan: queQuan ?? this.queQuan,
       avatarColorValue: avatarColorValue ?? this.avatarColorValue,
+      avatarAssetPath: avatarAssetPath ?? this.avatarAssetPath,
     );
   }
 }

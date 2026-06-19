@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../data/app_data.dart';
 import '../models/employee.dart';
 import '../widgets/employee_card.dart';
@@ -16,6 +19,15 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
   String _selectedGenderFilter = 'Tất cả';
   String _selectedHomeTownFilter = 'Tất cả';
   String _sortByAge = 'none'; // 'none', 'asc' (năm sinh tăng dần - tuổi giảm dần), 'desc'
+
+  final List<String> _avatarAssetPaths = [
+    'assets/avatars/avatar1.png',
+    'assets/avatars/avatar2.png',
+    'assets/avatars/avatar3.png',
+    'assets/avatars/avatar4.png',
+    'assets/avatars/avatar5.png',
+    'assets/avatars/avatar6.png',
+  ];
 
   final List<int> _avatarColors = [
     0xFF5C6BC0, // Indigo
@@ -66,6 +78,14 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
       appBar: AppBar(
         title: const Text('Danh sách Nhân viên'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Xuất báo cáo PDF',
+            onPressed: () => _exportToPdf(context, appData),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -290,6 +310,7 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
     int selectedYear = existingEmployee?.namSinh ?? 2000;
     String selectedGender = existingEmployee?.gioiTinh ?? 'Nam';
     String selectedTrinhDo = existingEmployee?.trinhDo ?? 'Đại học';
+    String selectedAvatarPath = existingEmployee?.avatarAssetPath ?? 'assets/avatars/avatar1.png';
 
     final List<String> trinhDoOptions = [
       'Trung cấp',
@@ -299,6 +320,9 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
       'Tiến sĩ',
       'Khác'
     ];
+    if (!trinhDoOptions.contains(selectedTrinhDo)) {
+      trinhDoOptions.add(selectedTrinhDo);
+    }
 
     // Picker chọn năm sinh chuyên dụng bằng showDatePicker
     Future<void> selectYearOfBirth(BuildContext dialogContext, StateSetter setDialogState) async {
@@ -458,6 +482,60 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                         ),
                         const SizedBox(height: 16),
 
+                        // Chọn hình đại diện (Avatar)
+                        Text(
+                          'Chọn ảnh đại diện',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 70,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _avatarAssetPaths.length,
+                            itemBuilder: (context, index) {
+                              final path = _avatarAssetPaths[index];
+                              final isSelected = selectedAvatarPath == path;
+                              return GestureDetector(
+                                onTap: () {
+                                  setDialogState(() {
+                                    selectedAvatarPath = path;
+                                  });
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                                        width: 3,
+                                      ),
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 28,
+                                      backgroundColor: Colors.grey[200],
+                                      child: ClipOval(
+                                        child: Image.asset(
+                                          path,
+                                          width: 56,
+                                          height: 56,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
                         // Trình độ học vấn (Dropdown)
                         DropdownButtonFormField<String>(
                           value: trinhDoOptions.contains(selectedTrinhDo) ? selectedTrinhDo : trinhDoOptions.first,
@@ -529,6 +607,7 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                         trinhDo: selectedTrinhDo,
                         queQuan: queQuanController.text.trim(),
                         avatarColorValue: existingEmployee?.avatarColorValue ?? randomColorVal,
+                        avatarAssetPath: selectedAvatarPath,
                       );
 
                       bool success;
@@ -624,4 +703,213 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
       },
     );
   }
+
+  // --- HÀM XUẤT DANH SÁCH NHÂN VIÊN RA PDF ---
+  Future<void> _exportToPdf(BuildContext context, AppData appData) async {
+    // Hiển thị vòng quay tải (loading) trong khi chuẩn bị font và file
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final pdf = pw.Document();
+
+      // Tải font hỗ trợ Tiếng Việt (Roboto) từ Google Fonts qua thư viện printing
+      final fontRegular = await PdfGoogleFonts.robotoRegular();
+      final fontBold = await PdfGoogleFonts.robotoBold();
+
+      final employees = appData.employees;
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(24),
+          build: (pw.Context pdfContext) {
+            return [
+              // Header báo cáo
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'ỨNG DỤNG QUẢN LÝ NHÂN SỰ',
+                        style: pw.TextStyle(
+                          font: fontBold,
+                          fontSize: 10,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                      pw.Text(
+                        'Mẫu báo cáo: BC-NV01',
+                        style: pw.TextStyle(
+                          font: fontRegular,
+                          fontSize: 9,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Divider(thickness: 1, color: PdfColors.grey300),
+                  pw.SizedBox(height: 16),
+                  pw.Center(
+                    child: pw.Text(
+                      'BÁO CÁO DANH SÁCH NHÂN VIÊN',
+                      style: pw.TextStyle(
+                        font: fontBold,
+                        fontSize: 18,
+                        color: PdfColors.indigo800,
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Center(
+                    child: pw.Text(
+                      'Ngày lập báo cáo: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} | Tổng số: ${employees.length} nhân sự',
+                      style: pw.TextStyle(
+                        font: fontRegular,
+                        fontSize: 10,
+                        fontStyle: pw.FontStyle.italic,
+                        color: PdfColors.grey800,
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 20),
+                ],
+              ),
+              
+              // Bảng dữ liệu nhân viên
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                columnWidths: {
+                  0: const pw.FixedColumnWidth(25),  // STT
+                  1: const pw.FixedColumnWidth(50),  // Mã NV
+                  2: const pw.FixedColumnWidth(110), // Họ Tên
+                  3: const pw.FixedColumnWidth(55),  // Năm sinh
+                  4: const pw.FixedColumnWidth(50),  // Giới tính
+                  5: const pw.FixedColumnWidth(70),  // Trình độ
+                  6: const pw.FixedColumnWidth(75),  // Quê quán
+                  7: const pw.FixedColumnWidth(85),  // Chức vụ
+                },
+                children: [
+                  // Hàng tiêu đề của bảng
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey200,
+                    ),
+                    children: [
+                      _buildCell('STT', fontBold, isHeader: true),
+                      _buildCell('Mã NV', fontBold, isHeader: true),
+                      _buildCell('Họ Tên', fontBold, isHeader: true),
+                      _buildCell('Năm sinh', fontBold, isHeader: true),
+                      _buildCell('Giới tính', fontBold, isHeader: true),
+                      _buildCell('Trình độ', fontBold, isHeader: true),
+                      _buildCell('Quê quán', fontBold, isHeader: true),
+                      _buildCell('Chức vụ', fontBold, isHeader: true),
+                    ],
+                  ),
+                  // Các dòng dữ liệu nhân viên
+                  for (int i = 0; i < employees.length; i++) ...[
+                    pw.TableRow(
+                      children: [
+                        _buildCell('${i + 1}', fontRegular),
+                        _buildCell(employees[i].maNV, fontRegular),
+                        _buildCell(employees[i].hoTen, fontRegular, alignLeft: true),
+                        _buildCell(employees[i].namSinh.toString(), fontRegular),
+                        _buildCell(employees[i].gioiTinh, fontRegular),
+                        _buildCell(employees[i].trinhDo, fontRegular),
+                        _buildCell(employees[i].queQuan, fontRegular, alignLeft: true),
+                        _buildCell(
+                          appData.getPositionNameOfEmployee(employees[i].maNV),
+                          fontRegular,
+                          alignLeft: true,
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+              
+              // Ký tên xác nhận
+              pw.SizedBox(height: 35),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Text(
+                        'Người Lập Báo Cáo',
+                        style: pw.TextStyle(font: fontBold, fontSize: 10),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        '(Ký, ghi rõ họ tên)',
+                        style: pw.TextStyle(
+                          font: fontRegular,
+                          fontSize: 8,
+                          fontStyle: pw.FontStyle.italic,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                      pw.SizedBox(height: 45),
+                      pw.Text(
+                        'Bộ phận Hành chính Nhân sự',
+                        style: pw.TextStyle(font: fontBold, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(width: 30),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      // Đóng loading dialog
+      if (context.mounted) Navigator.pop(context);
+
+      // Mở màn hình xem trước bản in (Print Preview) và lưu/in
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'Danh_sach_nhan_vien_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+    } catch (e) {
+      // Đóng loading dialog nếu có lỗi
+      if (context.mounted) Navigator.pop(context);
+      
+      // Hiển thị thông báo lỗi
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tạo file PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Hàm xây dựng các ô trong bảng PDF
+  pw.Widget _buildCell(String text, pw.Font font, {bool isHeader = false, bool alignLeft = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+      child: pw.Text(
+        text,
+        textAlign: alignLeft ? pw.TextAlign.left : pw.TextAlign.center,
+        style: pw.TextStyle(
+          font: font,
+          fontSize: isHeader ? 8.5 : 8,
+          color: isHeader ? PdfColors.black : PdfColors.grey900,
+        ),
+      ),
+    );
+  }
 }
+

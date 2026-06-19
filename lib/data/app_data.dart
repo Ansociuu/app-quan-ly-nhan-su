@@ -61,27 +61,30 @@ class AppData extends ChangeNotifier {
             hoTen: 'Nguyễn Văn A',
             namSinh: 2002,
             gioiTinh: 'Nam',
-            trinhDo: 'Đại học (CNTT)',
+            trinhDo: 'Đại học',
             queQuan: 'Hà Nội',
             avatarColorValue: 0xFF5C6BC0, // Indigo
+            avatarAssetPath: 'assets/avatars/avatar1.png',
           ),
           Employee(
             maNV: 'NV02',
             hoTen: 'Trần Thị B',
             namSinh: 2001,
             gioiTinh: 'Nữ',
-            trinhDo: 'Đại học (Kế toán)',
+            trinhDo: 'Đại học',
             queQuan: 'Hải Phòng',
             avatarColorValue: 0xFFEC407A, // Pink
+            avatarAssetPath: 'assets/avatars/avatar2.png',
           ),
           Employee(
             maNV: 'NV03',
             hoTen: 'Phạm Minh C',
             namSinh: 1999,
             gioiTinh: 'Nam',
-            trinhDo: 'Cao đẳng (Quản trị)',
+            trinhDo: 'Cao đẳng',
             queQuan: 'Đà Nẵng',
             avatarColorValue: 0xFF26A69A, // Teal
+            avatarAssetPath: 'assets/avatars/avatar3.png',
           ),
         ];
       }

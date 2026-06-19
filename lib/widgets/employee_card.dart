@@ -61,14 +61,23 @@ class EmployeeCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 26,
-                  backgroundColor: Color(employee.avatarColorValue),
-                  child: Text(
-                    _getInitials(employee.hoTen),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      letterSpacing: 1.0,
+                  backgroundColor: Color(employee.avatarColorValue).withOpacity(0.15),
+                  child: ClipOval(
+                    child: Image.asset(
+                      employee.avatarAssetPath,
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Text(
+                          _getInitials(employee.hoTen),
+                          style: TextStyle(
+                            color: Color(employee.avatarColorValue),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
